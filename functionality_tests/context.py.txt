@@ -1,0 +1,3 @@
+blink.py:
+	Shows the microcontroller can be programmed, and it does as it is expected to do.
+	On power, the microcontroller should toggle its in-built LED on and off once per second.
