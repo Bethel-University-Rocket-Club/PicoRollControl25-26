@@ -41,16 +41,14 @@ class MPU6050:
         self._arange = 3
         self._grange = 0
         #do a calibration_test() for new values
-        self._driftAX = 1.06016
-        self._driftAY = 0.049388168
-        self._driftAZ = -0.039845625
-        self._driftGX = -0.37136308
-        self._driftGY = -2.7224848
-        self._driftGZ = 0.0016828046
+        self._driftAX = 1.0643722
+        self._driftAY = 0.04257792
+        self._driftAZ = 0.028002714
+        self._driftGX = -0.0013578808
+        self._driftGY = -3.102735
+        self._driftGZ = 0.2961259
         self._inv = 0b0
 
-        
-        
     def _set_defaults(self):
         self.wake()
         self.set_sample_rate(0)
@@ -148,7 +146,7 @@ class MPU6050:
         count = 0.0
         tempVals = [0]*6
         zVal = 0
-        while time.ticks_diff(time.ticks_ms(), start) < 1000:
+        while time.ticks_diff(time.ticks_ms(), start) < 10000:
             measVals = []
             count += 1
             measVals.extend(self.get_accel())
@@ -222,3 +220,7 @@ class MPU6050:
         
     def _disable_fifo(self):
         self._i2c.writeto_mem(MPU6050_I2CADDR, MPU6050_REGISTER_USER_CONTROL, bytes([0]))
+        
+    def check_connection(self):
+        out = self._i2c.writeto(MPU6050_I2CADDR, bytes([0x00]))
+        return out >= 0

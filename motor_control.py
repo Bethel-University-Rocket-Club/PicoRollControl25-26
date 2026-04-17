@@ -1,7 +1,7 @@
 # This example shows a simple way to control the Motoron Motor Controller
 # I2C interface using the machine.I2C class in MicroPython, without using
 # the Motoron library.
- 
+
 import math
 import time
 from machine import I2C, Pin
@@ -10,7 +10,7 @@ motor_I2C_bus = None
 motor_I2C_address = None
 
 def i2c_write(cmd):
-  motor_I2C_bus.writeto(motor_I2C_address, bytes(cmd))
+  return motor_I2C_bus.writeto(motor_I2C_address, bytes(cmd))
  
 def set_max_acceleration(motor, accel):
   i2c_write([
@@ -36,6 +36,9 @@ def init_motor():
       # Clear the reset flag using a "Clear latched status flags" command.
       0xA9, 0x00, 0x04,
     ])
+    
+def check_connection():
+    return i2c_write(0x00) >= 0
  
 # By default, the Motoron is configured to stop the motors if it does not get
 # a motor control command for 1500 ms.  Uncomment a block of code below to

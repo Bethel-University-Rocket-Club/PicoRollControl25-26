@@ -1,3 +1,4 @@
+'''
 import wireless
 import webrepl
 import time
@@ -14,3 +15,4 @@ except ImportError:
         f.write(f"PASS = '{webrepl_password}'\n")
 
 webrepl.start()
+'''
