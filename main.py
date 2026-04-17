@@ -201,7 +201,7 @@ def motor_stable():
         runningAltitude += runningVelocity * deltaTime
         if maxAltitude < runningAltitude:
             maxAltitude = runningAltitude
-        print(deltaTime, acc, runningVelocity, maxAltitude, runningAltitude)
+        #print(deltaTime, acc, runningVelocity, maxAltitude, runningAltitude)
         #write_timepoint(newTime, deltaRoll, cumAngle)
         if cumAngle > 10:
             wireless.send("ROLL_CCW")
