@@ -2,7 +2,7 @@ from machine import I2C, SPI, Pin
 import time
 import utime
 import os
-import motor_control
+import motor_controller
 from MPU6050 import MPU6050
 import sdcard
 import wireless
@@ -55,13 +55,13 @@ def sd_card_setup():
     
 def motor_setup():
     # Configure motor
-    motor_control.motor_I2C_bus = I2C(0, scl=Pin(5), sda=Pin(4))
-    motor_control.motor_I2C_address = 16
+    motor_controller.motor_I2C_bus = I2C(0, scl=Pin(5), sda=Pin(4))
+    motor_controller.motor_I2C_address = 16
     
-    motor_control.init_motor()
+    motor_controller.init_motor()
     
-    motor_control.set_max_acceleration(1, 800)
-    motor_control.set_max_deceleration(1, 800)
+    motor_controller.set_max_acceleration(1, 800)
+    motor_controller.set_max_deceleration(1, 800)
     
 def wireless_setup():
     wireless.connect()
@@ -127,7 +127,7 @@ def until_launched():
     
 def until_landed():
     while True:
-        motor_control.set_speed(1, 0)
+        motor_controller.set_speed(1, 0)
         accel_vals = gyro.get_accel()
         accel_vals = [abs(x) for x in accel_vals]
         still_flags = [x < 1.5 for x in accel_vals]
@@ -167,15 +167,15 @@ def motor_9090():
         if not pastFirst90:
             if cumAngle > 95:
                 pastFirst90 = True
-                motor_control.set_speed(1, -800)
+                motor_controller.set_speed(1, -800)
             else:
-                motor_control.set_speed(1, 800)
+                motor_controller.set_speed(1, 800)
         else:
             if cumAngle < -100:
-                motor_control.set_speed(1, 0)
+                motor_controller.set_speed(1, 0)
                 break
             else:
-                motor_control.set_speed(1, -800)
+                motor_controller.set_speed(1, -800)
         time.sleep(0.01)
 
                 
@@ -205,25 +205,25 @@ def motor_stable():
         #write_timepoint(newTime, deltaRoll, cumAngle)
         if cumAngle > 10:
             wireless.send("ROLL_CCW")
-            motor_control.set_speed(1, -800)
+            motor_controller.set_speed(1, -800)
             activeRolling = True
         elif cumAngle < -10:
             wireless.send("ROLL_CW")
-            motor_control.set_speed(1, 800)
+            motor_controller.set_speed(1, 800)
             activeRolling = True
         else:
             if activeRolling:
                 if cumAngle > 2.0:
                     wireless.send("ROLL_CCW")
-                    motor_control.set_speed(1, -800)
+                    motor_controller.set_speed(1, -800)
                 elif cumAngle < -2.0:
                     wireless.send("ROLL_CW")
-                    motor_control.set_speed(1, 800)
+                    motor_controller.set_speed(1, 800)
                 else:
                     activeRolling = False
             else:
                 wireless.send("ROLL_STILL")
-                motor_control.set_speed(1, 0)
+                motor_controller.set_speed(1, 0)
         time.sleep(0.01)
                 
     wireless.send("ROLL_END")

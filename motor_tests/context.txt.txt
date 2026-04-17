@@ -1,0 +1,26 @@
+test order:
+	motor_test.py
+	motor_stable.py
+	motor_9090.py
+
+motor_test.py:
+	Dependent on motor_controller file being on microcontroller
+
+motor_stable.py:
+	Dependent on motor_controller file being on microcontroller
+	Dependent on MPU6050 file being on microcontroller
+	Only begins stabilizing if the rotation value is > 10 or < -10, and stop when the angle gets to between -2 and 2
+		So, it can rotate +-10 degrees before the system corrects it back to +- 2
+		The values +-10 and +-2 can be modified by changing the ACTIVE_ROLL_START_THRESHOLD and the ACTIVE_ROLL_STOP_THRESHOLD variables respectively
+	This will run until it runs out of power in this test, it has no built-in stop condition
+
+motor_9090.py:
+	Dependent on motor_controller file being on microcontroller
+	Dependent on MPU6050 file being on microcontroller
+	If it keeps rotating in one direction without stopping, cut power to stop the program.
+		At the top of the file, negate CLOCKWISE_SPEED and COUNTERCLOCKWISE_SPEED
+		If it still never stops, contact Davey and have him check the code
+	This should rotate 90 degrees clockwise, then to -100 degrees clockwise
+
+NOTE:
+	the motor rotation is based off of the gyroscope values, not what the counter-weight is doing. It seems like a good idea to not hold it by the counter weight, and instead just rotate the entire base to test behavior.

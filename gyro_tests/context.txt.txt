@@ -1,0 +1,9 @@
+requires MPU6050.py to be saved on the microcontroller as well
+
+Acceleration X is in the direction of the copper weight
+	moving the system upwards should cause acceleration x to be positive, measured in g's
+Gyro X is in the direction of clockwise
+	rotating the system clockwise should cause gyro to be positive
+		current angle x should be positive
+
+the other components we don't particularly care about since we don't need to use them
