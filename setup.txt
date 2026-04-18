@@ -1,0 +1,32 @@
+Install the Thonny Python IDE.
+
+Installing MicroPython on a Pi Pico 2W:
+	On the Pico 2W board, hold down the white button
+	Plug it into a laptop while holding the button
+	Release the button once it is plugged in
+	You should see a file explorer window open, if not try continuing regardless
+	In Thonny, go to Tools > Options > Interpretor
+	For "What kind of interpretor..." select MicroPython (RP2040)
+	In the bottom right that is a small link that says "Install or update MicroPython", select that
+	Target Volume should automatically fill in, if it does not try from the first step
+	MicroPython Family is RP2
+	Variant is Pico 2W
+	Version should automatically fill in
+	Select Install
+
+Running Code:
+	Once MicroPython is installed on the device, plug it into your computer, don't hold down any buttons
+	In Thonny go to Tools > Options > Interpretor
+	Ensure interpretor is MicroPython (RP2040)
+	In Port or WebREPL select the top COM port
+	Select OK
+	Open the python file you want to save to the pico 2w
+	Go to File > Save as
+	Select RP2040 device
+	name it XXX.py
+	While in Thonny, if you are have a file open, you can press the green arrow at the top left to run it regardless of its name.
+	Copy over the blink.py code in functionality_tests and try running it. The on board LED on the pico 2W should blink in a 1 second interval
+
+main.py:
+	Only one file can be named main.py
+	This file will be automatically run when the pico 2w gets power

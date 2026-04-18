@@ -22,5 +22,16 @@ motor_9090.py:
 		If it still never stops, contact Davey and have him check the code
 	This should rotate 90 degrees clockwise, then to -100 degrees clockwise
 
-NOTE:
-	the motor rotation is based off of the gyroscope values, not what the counter-weight is doing. It seems like a good idea to not hold it by the counter weight, and instead just rotate the entire base to test behavior.
+timed_motor_stable.py:
+	Dependent on motor_controller file being on microcontroller
+	Dependent on MPU6050 file being on microcontroller
+	On launch (jerk up exceeding 2g's acceleration) begins stabilizing
+	stabilizing lasts for 20 seconds
+	Only begins stabilizing if the rotation value is > 10 or < -10, and stop when the angle gets to between -2 and 2
+
+timed_motor_5CW5CCW.py:
+	Dependent on motor_controller file being on microcontroller
+	Waits 5 seconds after receiving power
+	Rotates for 5 seconds CW
+	Then rotates for 10 seconds CCW
+	Then ends
