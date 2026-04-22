@@ -35,18 +35,14 @@ def connect():
 exception_counter = 0
 def send(data):
     global sock, exception_counter
-    print(f"attempting to send {data}")
     if sock is None:
         print("no socket")
         return
     try:
        sock.sendto(str(data).encode(),(zero_IP, zero_Port))
-       print("sent")
     except Exception as e:
         if exception_counter > 15:
             close()
-            exception_counter = 0
-            connect()
             
         print(e, exception_counter)
         exception_counter += 1

@@ -87,4 +87,3 @@ motor_setup()
 gyro_setup()
 until_launched()
 motor_stable()
-
