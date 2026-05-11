@@ -38,5 +38,8 @@ for i in range(len(speeds)-1):
     avg_speed = (cur_speed + next_speed) / 2
     result_data.append([avg_speed, avg_speed_effect])
     
+for data in result_data:
+    print(data[0], data[1])
+    
 result_data.append([0, 0])
 best_fit([x[1] for x in result_data], [x[0] for x in result_data])

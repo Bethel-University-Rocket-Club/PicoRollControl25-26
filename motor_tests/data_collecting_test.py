@@ -20,8 +20,9 @@ def motor_setup():
     
     motor_controller.init_motor()
     
-    motor_controller.set_max_acceleration(1, 5000)
-    motor_controller.set_max_deceleration(1, 5000)
+    #maximum acceleration
+    motor_controller.set_max_acceleration(1, 0)
+    motor_controller.set_max_deceleration(1, 0)
 
 def gyro_setup():
     global gyro
@@ -55,7 +56,29 @@ def data_collect():
             time.sleep(0.1)
             gc.collect()
             f.flush()
+            
+def data_collect_x(x):
+    global gyro, cumAngle, CLOCKWISE_SPEED, COUNTERCLOCKWISE_SPEED, NO_SPEED
+    with open(f"{str(x)}.csv", "w") as f:
+        f.write(f"speed,time from speed start, delta roll\n")
+        speed = x
+        startTime = utime.ticks_ms()
+        curTime = utime.ticks_ms()
+        while utime.ticks_diff(curTime, startTime) * 0.001 < 10:
+            motor_controller.set_speed(1, speed)
+            curTime = utime.ticks_ms()
+            f.write(f"{speed},{utime.ticks_diff(curTime, startTime)},{gyro.get_gyroX()}\n")
+            time.sleep(0.01)
+        time.sleep(0.1)
+        motor_controller.set_speed(1, NO_SPEED)
+        time.sleep(0.1)
+        gc.collect()
+        f.flush()
 
 motor_setup()
 gyro_setup()
-data_collect()
+data_collect_x(800)
+time.sleep(15)
+data_collect(3000)
+time.sleep(15)
+data_collect(5000)
