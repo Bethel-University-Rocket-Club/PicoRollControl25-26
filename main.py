@@ -15,9 +15,6 @@ gyro = None
 sd = None
 data_file = None
 
-#2 g's
-LAUNCH_THRESHOLD = 2
-
 LAUNCH_TIME_MS = 0
 
 LOOP_SPEED = 0.01

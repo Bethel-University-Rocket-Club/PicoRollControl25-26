@@ -9,8 +9,8 @@ def motor_setup():
     
     motor_controller.init_motor()
     
-    motor_controller.set_max_acceleration(1, 800)
-    motor_controller.set_max_deceleration(1, 800)
+    motor_controller.set_max_acceleration(1, 3000)
+    motor_controller.set_max_deceleration(1, 3000)
 
 led = Pin(25, Pin.OUT)
 def blink():
@@ -20,7 +20,5 @@ motor_setup()
     
 while True:
     blink()
-    motor_controller.set_speed(1, -800)
-    time.sleep(3)
-    motor_controller.set_speed(1, 800)
+    motor_controller.set_speed(1, 3000)
     time.sleep(3)
