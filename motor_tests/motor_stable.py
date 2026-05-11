@@ -8,8 +8,8 @@ gyro = None
 
 LOOP_SPEED = 0.01
 
-CLOCKWISE_SPEED = 800
-COUNTERCLOCKWISE_SPEED = -800
+CLOCKWISE_SPEED = 5000
+COUNTERCLOCKWISE_SPEED = -5000
 NO_SPEED = 0
 ACTIVE_ROLL_START_THRESHOLD = 10
 ACTIVE_ROLL_STOP_THRESHOLD = 2
@@ -21,8 +21,11 @@ def motor_setup():
     
     motor_controller.init_motor()
     
-    motor_controller.set_max_acceleration(1, 800)
-    motor_controller.set_max_deceleration(1, 800)
+    motor_controller.set_timeout_time(500) #ms
+    
+    #as fast as possible
+    motor_controller.set_max_acceleration(1, 0)
+    motor_controller.set_max_deceleration(1, 0)
 
 def gyro_setup():
     global gyro

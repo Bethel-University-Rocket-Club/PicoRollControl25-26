@@ -23,7 +23,8 @@ def set_max_deceleration(motor, decel):
     0x9C, motor, 16, decel & 0x7F, (decel >> 7) & 0x7F])
  
 def set_speed(motor, speed):
-  i2c_write([0xD1, motor, speed & 0x7F, (speed >> 7) & 0x7F])
+  #0xD2 is now mode, so it goes to the new speed as fast as possible
+  i2c_write([0xD2, motor, speed & 0x7F, (speed >> 7) & 0x7F])
 
 def init_motor():
     i2c_write([
@@ -37,19 +38,8 @@ def init_motor():
       0xA9, 0x00, 0x04,
     ])
     
-def check_connection():
-    return i2c_write(0x00) >= 0
- 
-# By default, the Motoron is configured to stop the motors if it does not get
-# a motor control command for 1500 ms.  Uncomment a block of code below to
-# adjust this time or disable the timeout feature.
- 
-# Change the command timeout using a "Set Variable" command.
-# The maximmum timeout allowed is 65000 ms.
-# timeout_ms = 1000
-# timeout = math.ceil(timeout_ms / 4)
-# i2c_write([0x9C, 0, 5, timeout & 0x7F, (timeout >> 7) & 0x7F])
- 
-# Disable the command timeout by using a "Set variable" command to clear
-# the command timeout bit in the error mask.
-# i2c_write([0x9C, 0, 8, 0, 4])
+#default of 1500
+def set_timeout_time(time_ms):
+    timeout = math.ceil(time_ms / 4)
+    i2c_write([0x9C, 0, 5, timeout & 0x7F, (timeout >> 7) & 0x7F])
+    
