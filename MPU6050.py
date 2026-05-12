@@ -112,7 +112,7 @@ class MPU6050:
         
     def get_gyroY(self):
         return self._apply_drift(self._bytes_to_int(self._i2c.readfrom_mem(MPU6050_I2CADDR, MPU6050_REGISTER_GYRO_Y, 2))
-                                 *self._gyro_scale[self._grange], self._driftGY (self._inv >> 1) & 1)
+                                 *self._gyro_scale[self._grange], self._driftGY, (self._inv >> 1) & 1)
         
     def get_gyroZ(self):
         return self._apply_drift(self._bytes_to_int(self._i2c.readfrom_mem(MPU6050_I2CADDR, MPU6050_REGISTER_GYRO_Z, 2))
@@ -168,7 +168,7 @@ class MPU6050:
         
     #inv should be boolean true of false, 1 or 0.
     def _apply_drift(self, val, drift, inv):
-        return (val - drift) * (inv * 2 + 1)
+        return (val - drift) * (-1 if inv else 1)
 
     def get_temp(self):
         return self._bytes_to_int(self._i2c.readfrom_mem(MPU6050_I2CADDR, MPU6050_REGISTER_TEMP, 2))/340 + 36.53
@@ -178,9 +178,9 @@ class MPU6050:
         x = self._bytes_to_int(data[0:2])*self._accel_scale[self._arange]
         y = self._bytes_to_int(data[2:4])*self._accel_scale[self._arange]
         z = self._bytes_to_int(data[4:6])*self._accel_scale[self._arange]
-        fx = self._apply_drift(x, self._driftAX, (self._inv >> 5) * 1)
-        fy = self._apply_drift(y, self._driftAY, (self._inv >> 4) * 1)
-        fz = self._apply_drift(z, self._driftAZ, (self._inv >> 3) * 1)
+        fx = self._apply_drift(x, self._driftAX, (self._inv >> 5) & 1)
+        fy = self._apply_drift(y, self._driftAY, (self._inv >> 4) & 1)
+        fz = self._apply_drift(z, self._driftAZ, (self._inv >> 3) & 1)
         return fx, fy, fz
     
     def get_gyro(self):
@@ -188,9 +188,9 @@ class MPU6050:
         x = self._bytes_to_int([data[0], data[1]])*self._gyro_scale[self._grange]
         y = self._bytes_to_int([data[2], data[3]])*self._gyro_scale[self._grange]
         z = self._bytes_to_int([data[4], data[5]])*self._gyro_scale[self._grange]
-        fx = self._apply_drift(x, self._driftGX, (self._inv >> 2) * 1)
-        fy = self._apply_drift(y, self._driftGY, (self._inv >> 1) * 1)
-        fz = self._apply_drift(z, self._driftGZ, (self._inv >> 0) * 1)
+        fx = self._apply_drift(x, self._driftGX, (self._inv >> 2) & 1)
+        fy = self._apply_drift(y, self._driftGY, (self._inv >> 1) & 1)
+        fz = self._apply_drift(z, self._driftGZ, (self._inv >> 0) & 1)
         return fx, fy, fz
     
     def reset(self):
