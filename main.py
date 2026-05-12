@@ -112,7 +112,7 @@ def until_launched():
     return False
     
 def until_landed():
-    global MOTOT_STILL
+    global MOTOR_STILL
     while True:
         motor_controller.set_speed(1, MOTOR_STILL)
         accel_vals = gyro.get_accel()
@@ -123,34 +123,43 @@ def until_landed():
             time.sleep(1.0)
             return True
         
-prevTime = utime.ticks_ms()
-cumAngle = 0
 runningVelocity = 0
 runningAltitude = 0
 maxAltitude = 0
+overCount = 0
+def past_apogee(accel_up, delta_time_s):
+    global runningVelocity, runningAltitude, maxAltitude, overCount
+    runningVelocity += accel_up * delta_time_s
+    runningAltitude += runningVelocity * delta_time_s
+    if maxAltitude < runningAltitude:
+        maxAltitude = runningAltitude
+    elif overCount < 5:
+        overCount += 1
+    else:
+        return True
+    return False
+
+def send_wireless_direction_90(delta_roll):
+    if delta_roll >= 0:
+        wireless.send("ROLL_CW")
+    else:
+        wireless.send("ROLL_CCW")
+                
+prevTime = utime.ticks_ms()
+cumAngle = 0
 def motor_9090():
-    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle, runningVelocity, runningAltitude, maxAltitude, MOTOR_STILL, MOTOR_CLOCKWISE_SPEED, MOTOR_COUNTERCLOCKWISE_SPEED
-    overCount = 0
+    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle, MOTOR_STILL, MOTOR_CLOCKWISE_SPEED, MOTOR_COUNTERCLOCKWISE_SPEED
     pastFirst90 = False
     while True:
-        if maxAltitude > runningAltitude:
-            if overCount > 5:
-                break
-            overCount += 1
         newTime = utime.ticks_ms()
         deltaTime = LOOP_SPEED
+        if past_apogee(gyro.get_accelX(), deltaTime):
+            break
         prevTime = newTime
         deltaRoll = gyro.get_gyroX()
         cumAngle += deltaRoll * deltaTime
-        runningVelocity += gyro.get_accelX() * deltaTime
-        runningAltitude += runningVelocity * deltaTime
-        if maxAltitude < runningAltitude:
-            maxAltitude = runningAltitude
         write_timepoint(newTime, deltaRoll, cumAngle)
-        if deltaRoll >= 0:
-            wireless.send("ROLL_CW")
-        else:
-            wireless.send("ROLL_CCW")
+        send_wireless_direction(deltaRoll)
         if not pastFirst90:
             if cumAngle > 95:
                 pastFirst90 = True
@@ -166,49 +175,51 @@ def motor_9090():
         time.sleep(LOOP_SPEED)
 
     wireless.send("ROLL_END")
+    
+def send_wireless_direction_stable(cumAngle, activeRolling):
+    if cumAngle > 10:
+        wireless.send("ROLL_CCW")
+    elif cumAngle < -10:
+        wireless.send("ROLL_CW")
+    else:
+        if activeRolling:
+            if cumAngle > 2.0:
+                wireless.send("ROLL_CCW")
+            elif cumAngle < -2.0:
+                wireless.send("ROLL_CW")
+        else:
+            wireless.send("ROLL_STILL")
 
 def motor_stable():
-    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle, runningVelocity, runningAltitude, maxAltitude, MOTOR_STILL, MOTOR_CLOCKWISE_SPEED, MOTOR_COUNTERCLOCKWISE_SPEED
+    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle, MOTOR_STILL, MOTOR_CLOCKWISE_SPEED, MOTOR_COUNTERCLOCKWISE_SPEED
     prevTime = LAUNCH_TIME_MS
-    overCount = 0
     activeRolling = False
     while True:
-        if maxAltitude > runningAltitude:
-            if overCount > 5:
-                break
-            overCount += 1
         newTime = utime.ticks_ms()
         deltaTime = LOOP_SPEED
+        if past_apogee(gyro.get_accelX(), deltaTime):
+            break
         prevTime = newTime
         deltaRoll = gyro.get_gyroX()
         cumAngle += deltaRoll * deltaTime
-        acc = gyro.get_accelX()
-        runningVelocity += acc * deltaTime
-        runningAltitude += runningVelocity * deltaTime
-        if maxAltitude < runningAltitude:
-            maxAltitude = runningAltitude
         #print(deltaTime, acc, runningVelocity, maxAltitude, runningAltitude)
         write_timepoint(newTime, deltaRoll, cumAngle)
+        send_wireless_direction_stable(cumAngle, activeRolling)
         if cumAngle > 10:
-            wireless.send("ROLL_CCW")
             motor_controller.set_speed(1, -MOTOR_COUNTERCLOCKWISE_SPEED)
             activeRolling = True
         elif cumAngle < -10:
-            wireless.send("ROLL_CW")
             motor_controller.set_speed(1, MOTOR_CLOCKWISE_SPEED)
             activeRolling = True
         else:
             if activeRolling:
                 if cumAngle > 2.0:
-                    wireless.send("ROLL_CCW")
                     motor_controller.set_speed(1, -MOTOR_COUNTERCLOCKWISE_SPEED)
                 elif cumAngle < -2.0:
-                    wireless.send("ROLL_CW")
                     motor_controller.set_speed(1, MOTOR_CLOCKWISE_SPEED)
                 else:
                     activeRolling = False
             else:
-                wireless.send("ROLL_STILL")
                 motor_controller.set_speed(1, MOTOR_STILL)
         time.sleep(LOOP_SPEED)
                 
@@ -216,23 +227,16 @@ def motor_stable():
     
 #essentially stores data if it can, and returns at apogee
 def no_motor():
-    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle, runningVelocity, runningAltitude, maxAltitude
+    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle
     prevTime = LAUNCH_TIME_MS
-    overCount = 0
     while True:
-        if maxAltitude > runningAltitude:
-            if overCount > 5:
-                break
-            overCount += 1
         newTime = utime.ticks_ms()
         deltaTime = LOOP_SPEED
+        if past_apogee(gyro.get_accelX(), deltaTime):
+            break
         prevTime = newTime
         deltaRoll = gyro.get_gyroX()
         cumAngle += deltaRoll * deltaTime
-        runningVelocity += gyro.get_accelX() * deltaTime
-        runningAltitude += runningVelocity * deltaTime
-        if maxAltitude < runningAltitude:
-            maxAltitude = runningAltitude
         write_timepoint(newTime, deltaRoll, cumAngle)
         time.sleep(LOOP_SPEED)
     
