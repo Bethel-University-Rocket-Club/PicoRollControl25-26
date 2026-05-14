@@ -4,7 +4,6 @@ import utime
 import os
 import motor_controller
 from MPU6050 import MPU6050
-import sdcard
 import wireless
 
 #POSITIVE GYROX IS CLOCKWISE
@@ -12,7 +11,6 @@ import wireless
 
 gyro = None
 
-sd = None
 data_file = None
 
 LAUNCH_TIME_MS = 0
@@ -80,8 +78,7 @@ def close_sdcard():
     
 def write_timepoint(current_time, deltaRoll, cumulativeRoll):
     global data_file
-    return
-    data_file.write(",".join([time.ticks_diff(current_time, LAUNCH_TIME_MS), "CCW" if deltaRoll > 0 else "CW", cumulativeRoll, deltaRoll]))
+    return data_file.write(",".join([time.ticks_diff(current_time, LAUNCH_TIME_MS), "CCW" if deltaRoll > 0 else "CW", cumulativeRoll, deltaRoll]))
         
 def wireless_close():
     wireless.close()    
@@ -95,7 +92,6 @@ def setup():
     
 def closedown():
     wireless_close()
-    #close_sdcard()
     
 def until_launched():
     global gyro, LAUNCH_TIME_MS

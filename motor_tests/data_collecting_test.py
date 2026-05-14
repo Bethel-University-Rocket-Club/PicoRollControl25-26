@@ -36,7 +36,6 @@ def gyro_setup():
     #inverts accelX (up) and gyroX(roll) - see top comments on roll values
     gyro.set_inv_measures(0b100100)
     time.sleep(0.5)
-    gyro.calibration_test(0, 0)
 
 cumAngle = 0
 def data_collect():
@@ -64,7 +63,7 @@ def data_collect_x(x):
         speed = x
         startTime = utime.ticks_ms()
         curTime = utime.ticks_ms()
-        while utime.ticks_diff(curTime, startTime) * 0.001 < 10:
+        while utime.ticks_diff(curTime, startTime) * 0.001 < 1:
             motor_controller.set_speed(1, speed)
             curTime = utime.ticks_ms()
             f.write(f"{speed},{utime.ticks_diff(curTime, startTime)},{gyro.get_gyroX()}\n")
@@ -79,6 +78,6 @@ motor_setup()
 gyro_setup()
 data_collect_x(800)
 time.sleep(15)
-data_collect(3000)
+data_collect_x(3000)
 time.sleep(15)
-data_collect(5000)
+data_collect_x(5000)

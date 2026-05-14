@@ -34,7 +34,7 @@ def gyro_setup():
     #gyro.calibration_test(0, 0)
     
 def get_motor_speed_from_roll(roll):
-    return -0.004 * roll
+    return -0.06 * roll
     
 def motor_stable():
     global gyro
@@ -46,17 +46,19 @@ def motor_stable():
     while utime.ticks_diff(cur_time_ms, start_time_ms) < 30000:
         prev_time_ms = cur_time_ms
         cur_time_ms = utime.ticks_ms()
-        delta_roll = gyro.get_gyroX()
+        delta_roll = gyro.get_gyro()[0]
         delta_time = utime.ticks_diff(cur_time_ms, prev_time_ms)
         cum_roll += delta_roll * delta_time / 1000
         #every 250 milliseconds drive the motor - gives it time to adjust
         if utime.ticks_diff(cur_time_ms, start_time_ms) // 250 > roll_check:
+            r_delta_roll = round(delta_roll)
+            #print(r_delta_roll)
             roll_check += 1
-            cum_motor_speed += get_motor_speed_from_roll(delta_roll)
+            cum_motor_speed += get_motor_speed_from_roll(r_delta_roll)
             #fastest direction to go to get back to 0
-            min_from_zero = (cum_roll % 360) - 180
-            cum_motor_speed += min_from_zero * -0.1 #return to 0
-            motor_controller.set_speed(1, cum_motor_speed)
+            min_from_zero = (cum_roll + 180) % 360 - 180
+            motor_speed = cum_motor_speed + min_from_zero * -10 #return to 0
+            motor_controller.set_speed(1, motor_speed)
         #record data here
 
 motor_setup()
