@@ -1,33 +1,59 @@
-from machine import I2C, SPI, Pin
+from MPU6050 import MPU6050
+import motor_controller
+from machine import I2C, Pin
 import time
 import utime
-import os
-import motor_controller
-from MPU6050 import MPU6050
 import wireless
-
-#POSITIVE GYROX IS CLOCKWISE
-#NEGATIVE GYROX IS COUNTERCLOCKWISE
+import os
 
 gyro = None
 
 data_file = None
 
+APOGEE = 0
+APOGEE_UPDATE_TIME = 0
 LAUNCH_TIME_MS = 0
+LAUNCH_THRESHOLD = 2 #g's
 
-LOOP_SPEED = 0.01
-
-MOTOR_MAX_ACCEL = 3000
-MOTOR_MAX_DECEL = 3000
-
-MOTOR_CLOCKWISE_SPEED = 3000
-MOTOR_COUNTERCLOCKWISE_SPEED = -3000
 MOTOR_STILL = 0
 
-#%3 = 0 is motor 90x90
-#%3 = 1 is motor stable
-#%3 = 2 is no motor
-MODE = 0
+def sd_card_setup():
+    global data_file
+    data_file = open("data.csv", "w")
+    data_file.write(f"time from launch,intended roll direction,cumulative roll,delta roll,motor speed\n")
+
+def wireless_setup():
+    wireless.connect()
+
+def wireless_close():
+    wireless.close()   
+    
+def close_sdcard():
+    global data_file
+    data_file.close()
+    
+def write_timepoint(current_time, deltaRoll, cumulativeRoll, motor_power):
+    global data_file, MOTOR_STILL
+    direction = 'STILL'
+    print(motor_power)
+    if motor_power > MOTOR_STILL:
+        direction = 'CCW'
+    elif motor_power < MOTOR_STILL:
+        direction = 'CW'
+    data_file.write(f"{utime.ticks_diff(current_time, LAUNCH_TIME_MS)},{direction},{cumulativeRoll},{deltaRoll},{motor_power}\n")
+
+def motor_setup():
+    # Configure motor
+    motor_controller.motor_I2C_bus = I2C(0, scl=Pin(5), sda=Pin(4))
+    motor_controller.motor_I2C_address = 16
+    
+    motor_controller.init_motor()
+    
+    motor_controller.set_timeout_time(300) #ms
+    
+    #as fast as possible
+    motor_controller.set_max_acceleration(1, 0)
+    motor_controller.set_max_deceleration(1, 0)
 
 def gyro_setup():
     global gyro
@@ -38,223 +64,121 @@ def gyro_setup():
     gyro._set_defaults()
     gyro.wake()
     gyro._set_power_defaults2(0b000000)
-    #inverts accelX (up) and gyroX(roll) - see top comments on roll values
+    #inverts accelX (up) and gyroX(roll) - positive is CW
     gyro.set_inv_measures(0b100100)
     time.sleep(0.5)
     #gyro.calibration_test(0, 0)
     
-def sd_card_setup():
-    global data_file
-    data_file = open("data.csv", "w")
-    
-def motor_setup():
-    global MOTOR_MAX_ACCEL, MOTOR_MAX_DECEL
-    # Configure motor
-    motor_controller.motor_I2C_bus = I2C(0, scl=Pin(5), sda=Pin(4))
-    motor_controller.motor_I2C_address = 16
-    
-    motor_controller.init_motor()
-    
-    motor_controller.set_max_acceleration(1, MOTOR_MAX_ACCEL)
-    motor_controller.set_max_deceleration(1, MOTOR_MAX_DECEL)
-    
-def wireless_setup():
-    wireless.connect()
-    
-def mode_setup():
-    global MODE
-    MODE = 0
-    with open("config.txt", "r") as f:
-        content = f.read()
-        try:
-            MODE = int(content)
-        except Exception as e:
-            MODE = 0
-    
-def close_sdcard():
-    global data_file
-    data_file.close()
-    
-    
-def write_timepoint(current_time, deltaRoll, cumulativeRoll):
-    global data_file
-    return data_file.write(",".join([time.ticks_diff(current_time, LAUNCH_TIME_MS), "CCW" if deltaRoll > 0 else "CW", cumulativeRoll, deltaRoll]))
-        
-def wireless_close():
-    wireless.close()    
-    
 def setup():
     wireless_setup()
-    gyro_setup()
     motor_setup()
-    mode_setup()
-    
+    gyro_setup()
+    sd_card_setup()
     
 def closedown():
     wireless_close()
+    close_sdcard()
     
 def until_launched():
-    global gyro, LAUNCH_TIME_MS
+    global gyro, LAUNCH_TIME_MS, LAUNCH_THRESHOLD, APOGEE_UPDATE_TIME
     launch_counter = 0
     while True:
         #if up accel is greater than 2 g's
-        if gyro.get_accelX() > LAUNCH_THRESHOLD || gyro.get_accelX() < LAUNCH_THRESHOLD:
+        if abs(gyro.get_accelX()) > LAUNCH_THRESHOLD:
             launch_counter += 1
             if launch_counter > 2:
                 wireless.send("LAUNCHED")
                 LAUNCH_TIME_MS = utime.ticks_ms()
+                APOGEE_UPDATE_TIME = LAUNCH_TIME_MS
                 return True
+        time.sleep(0.01)
     #should be unreachable
     return False
     
-def until_landed():
-    global MOTOR_STILL
-    while True:
-        motor_controller.set_speed(1, MOTOR_STILL)
-        accel_vals = gyro.get_accel()
-        accel_vals = [abs(x) for x in accel_vals]
-        still_flags = [x < 1.5 for x in accel_vals]
-        if all(still_flags):
-            wireless.send("LANDED")
-            time.sleep(1.0)
-            return True
-        
-runningVelocity = 0
-runningAltitude = 0
-maxAltitude = 0
-overCount = 0
-def past_apogee(accel_up, delta_time_s):
-    global runningVelocity, runningAltitude, maxAltitude, overCount
-    runningVelocity += accel_up * delta_time_s
-    runningAltitude += runningVelocity * delta_time_s
-    if maxAltitude < runningAltitude:
-        maxAltitude = runningAltitude
-    elif overCount < 5:
-        overCount += 1
-    else:
-        return True
-    return False
+def get_motor_speed_from_roll(roll):
+    return 6 * roll
 
-def send_wireless_direction_90(delta_roll):
-    if delta_roll >= 0:
-        wireless.send("ROLL_CW")
-    else:
-        wireless.send("ROLL_CCW")
-                
-prevTime = utime.ticks_ms()
-cumAngle = 0
+def update_apogee(delta_time_s):
+    global LAUNCH_TIME_MS
+    cur_time = utime.ticks_ms()
+    if utime.ticks_diff(cur_time, LAUNCH_TIME_MS) / 1000 > 10:
+        return False
+    return True
+    
+def send_wireless_dir(motor_speed):
+    if motor_speed > 0:
+        wireless.send("CW")
+    elif motor_speed < 0:
+        wireless.send("CCW")
+
 def motor_9090():
-    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle, MOTOR_STILL, MOTOR_CLOCKWISE_SPEED, MOTOR_COUNTERCLOCKWISE_SPEED
-    pastFirst90 = False
-    while True:
-        newTime = utime.ticks_ms()
-        deltaTime = LOOP_SPEED
-        if past_apogee(gyro.get_accelX(), deltaTime):
+    global MOTOR_STILL, LAUNCH_TIME_MS
+    cum_roll = 0
+    cur_time_ms = utime.ticks_ms()
+    while cum_roll < 95:
+        prev_time_ms = cur_time_ms
+        cur_time_ms = utime.ticks_ms()
+        delta_roll = gyro.get_gyro()[0]
+        delta_time = utime.ticks_diff(cur_time_ms, prev_time_ms)
+        if not update_apogee(delta_time/1000): #past apogee
             break
-        prevTime = newTime
-        deltaRoll = gyro.get_gyroX()
-        cumAngle += deltaRoll * deltaTime
-        write_timepoint(newTime, deltaRoll, cumAngle)
-        send_wireless_direction(deltaRoll)
-        if not pastFirst90:
-            if cumAngle > 95:
-                pastFirst90 = True
-                motor_controller.set_speed(1, -MOTOR_COUNTERCLOCKWISE_SPEED)
-            else:
-                motor_controller.set_speed(1, MOTOR_CLOCKWISE_SPEED)
-        else:
-            if cumAngle < -10:
-                motor_controller.set_speed(1, MOTOR_STILL)
-                break
-            else:
-                motor_controller.set_speed(1, -MOTOR_COUNTERCLOCKWISE_SPEED)
-        time.sleep(LOOP_SPEED)
-
-    wireless.send("ROLL_END")
+        cum_roll += delta_roll * delta_time / 1000
+        motor_controller.set_speed(1, MOTOR_STILL - 1600) #in case MOTOR_STILL is at 800, ensure we go as fast as possible otherway
+        write_timepoint(cur_time_ms, delta_roll, cum_roll, max(MOTOR_STILL - 1600, -800))
+        send_wireless_dir(MOTOR_STILL - 1600)
+        time.sleep(0.01) #don't overwhelm wireless
+    while cum_roll > -5:
+        prev_time_ms = cur_time_ms
+        cur_time_ms = utime.ticks_ms()
+        delta_roll = gyro.get_gyro()[0]
+        delta_time = utime.ticks_diff(cur_time_ms, prev_time_ms)
+        if not update_apogee(delta_time/1000): #past apogee
+            break
+        cum_roll += delta_roll * delta_time / 1000
+        motor_controller.set_speed(1, MOTOR_STILL + 1600) #in case MOTOR_STILL is at -800, ensure we go as fast as possible otherway
+        write_timepoint(cur_time_ms, delta_roll, cum_roll, min(MOTOR_STILL + 1600, 800))
+        send_wireless_dir(MOTOR_STILL + 1600)
+        time.sleep(0.01) #don't overwhelm wireless
+    time.sleep(0.05) #ensure the still command gets through
+    motor_controller.set_speed(1, MOTOR_STILL)
     
-def send_wireless_direction_stable(cumAngle, activeRolling):
-    if cumAngle > 10:
-        wireless.send("ROLL_CCW")
-    elif cumAngle < -10:
-        wireless.send("ROLL_CW")
-    else:
-        if activeRolling:
-            if cumAngle > 2.0:
-                wireless.send("ROLL_CCW")
-            elif cumAngle < -2.0:
-                wireless.send("ROLL_CW")
-        else:
-            wireless.send("ROLL_STILL")
-
 def motor_stable():
-    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle, MOTOR_STILL, MOTOR_CLOCKWISE_SPEED, MOTOR_COUNTERCLOCKWISE_SPEED
-    prevTime = LAUNCH_TIME_MS
-    activeRolling = False
+    global gyro, MOTOR_STILL, LAUNCH_TIME_MS
+    cum_motor_speed = MOTOR_STILL
+    cum_roll = 0
+    start_time_ms = utime.ticks_ms()
+    cur_time_ms = utime.ticks_ms()
+    roll_check = -1
     while True:
-        newTime = utime.ticks_ms()
-        deltaTime = LOOP_SPEED
-        if past_apogee(gyro.get_accelX(), deltaTime):
+        prev_time_ms = cur_time_ms
+        cur_time_ms = utime.ticks_ms()
+        delta_roll = gyro.get_gyro()[0]
+        delta_time = utime.ticks_diff(cur_time_ms, prev_time_ms)
+        if not update_apogee(delta_time/1000): #past apogee
             break
-        prevTime = newTime
-        deltaRoll = gyro.get_gyroX()
-        cumAngle += deltaRoll * deltaTime
-        #print(deltaTime, acc, runningVelocity, maxAltitude, runningAltitude)
-        write_timepoint(newTime, deltaRoll, cumAngle)
-        send_wireless_direction_stable(cumAngle, activeRolling)
-        if cumAngle > 10:
-            motor_controller.set_speed(1, -MOTOR_COUNTERCLOCKWISE_SPEED)
-            activeRolling = True
-        elif cumAngle < -10:
-            motor_controller.set_speed(1, MOTOR_CLOCKWISE_SPEED)
-            activeRolling = True
-        else:
-            if activeRolling:
-                if cumAngle > 2.0:
-                    motor_controller.set_speed(1, -MOTOR_COUNTERCLOCKWISE_SPEED)
-                elif cumAngle < -2.0:
-                    motor_controller.set_speed(1, MOTOR_CLOCKWISE_SPEED)
-                else:
-                    activeRolling = False
-            else:
-                motor_controller.set_speed(1, MOTOR_STILL)
-        time.sleep(LOOP_SPEED)
-                
-    wireless.send("ROLL_END")
-    
-#essentially stores data if it can, and returns at apogee
-def no_motor():
-    global prevTime, LAUNCH_TIME_MS, LOOP_SPEED, cumAngle
-    prevTime = LAUNCH_TIME_MS
-    while True:
-        newTime = utime.ticks_ms()
-        deltaTime = LOOP_SPEED
-        if past_apogee(gyro.get_accelX(), deltaTime):
-            break
-        prevTime = newTime
-        deltaRoll = gyro.get_gyroX()
-        cumAngle += deltaRoll * deltaTime
-        write_timepoint(newTime, deltaRoll, cumAngle)
-        time.sleep(LOOP_SPEED)
-    
-def motor_loop():
-    global MODE
-    print(MODE%3)
-    if MODE%3 == 0:
-        motor_9090()
-    if MODE%3 == 1:
-        motor_stable()
-    if MODE%3 == 2:
-        no_motor()
+        cum_roll += delta_roll * delta_time / 1000
+        motor_speed = 0 #so we can record outside of the conditional
+        #every 250 milliseconds drive the motor - gives it time to adjust
+        if utime.ticks_diff(cur_time_ms, start_time_ms) // 250 > roll_check:
+            r_delta_roll = round(delta_roll)
+            #print(r_delta_roll)
+            roll_check += 1
+            cum_motor_speed += get_motor_speed_from_roll(r_delta_roll)
+            #fastest direction to go to get back to 0
+            min_from_zero = (cum_roll + 180) % 360 - 180
+            #print(min_from_zero, r_delta_roll)
+            motor_speed = cum_motor_speed + min_from_zero * 5 #return to 0
+            motor_controller.set_speed(1, motor_speed)
+        send_wireless_dir(motor_speed)
+        write_timepoint(cur_time_ms, delta_roll, cum_roll, min(max(motor_speed, -800), 800))
+        time.sleep(0.01) #don't overwhelm wireless
 
-def main():
-    try:
-        setup()
-        wireless.send("ROLL_CONTROL_READY")
-    except Exception as e:
-        wireless.send(str(e))
-    until_launched()
-    motor_loop()
-    until_landed()
-    closedown()
-
-main()
+setup()
+wireless.send("ROLL_CONTROL_READY")
+until_launched()
+time.sleep(0.25)
+motor_9090()
+time.sleep(0.1)
+motor_stable()
+wireless.send("ROLL_END")
+closedown()
